@@ -56,10 +56,10 @@ export default function Home() {
               Please access this site via a valid charge point URL with required parameters:
             </p>
             <code className="block bg-white px-4 py-3 rounded-lg text-sm font-mono text-gray-800 border-2 border-gray-200">
-              /{"{chargePointId}"}?connectorId={"{connectorId}"}&tenantId={"{tenantId}"}
+              /{"{chargePointId}"}?connectorId={"{connectorId}"}
             </code>
             <p className="text-sm text-gray-600 mt-3">
-              <strong>Example:</strong> /CP05?connectorId=1&tenantId=CA_ELO
+              <strong>Example:</strong> /CP05?connectorId=1
             </p>
           </div>
 

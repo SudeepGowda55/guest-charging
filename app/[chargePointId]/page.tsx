@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { loadStripe, Stripe } from "@stripe/stripe-js";
-import { Elements } from "@stripe/react-stripe-js";
-import PaymentForm from "./PaymentForm";
 
 interface PageProps {
   params: Promise<{
@@ -16,116 +13,78 @@ export default function ChargingPage({ params }: PageProps) {
   const searchParams = useSearchParams();
   const [chargePointId, setChargePointId] = useState<string>("");
   const [connectorId, setConnectorId] = useState<number | null>(null);
-  const [tenantId, setTenantId] = useState<string>("");
-  const [clientSecret, setClientSecret] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
-  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
 
   useEffect(() => {
-    // Unwrap params and get connector ID from query params
     params.then((resolvedParams) => {
       setChargePointId(resolvedParams.chargePointId);
 
-      // Get connectorId from URL query params (required)
+      // Check if payment was successful first
+      const paymentSuccessParam = searchParams.get("payment_success");
+      if (paymentSuccessParam === "true") {
+        setPaymentSuccess(true);
+        // Still need to get connectorId for display
+        const connectorIdParam = searchParams.get("connectorId");
+        if (connectorIdParam) {
+          setConnectorId(parseInt(connectorIdParam, 10));
+        }
+        return;
+      }
+
+      // Validate connectorId
       const connectorIdParam = searchParams.get("connectorId");
       if (!connectorIdParam) {
         setError("Connector ID is required. Please provide ?connectorId= in the URL");
-        setLoading(false);
         return;
       }
 
       const parsedConnectorId = parseInt(connectorIdParam, 10);
       if (isNaN(parsedConnectorId)) {
         setError("Invalid connector ID. Must be a number");
-        setLoading(false);
         return;
       }
-
       setConnectorId(parsedConnectorId);
-
-      // Get tenantId from URL query params (required)
-      const tenantIdParam = searchParams.get("tenantId");
-      if (!tenantIdParam) {
-        setError("Tenant ID is required. Please provide ?tenantId= in the URL");
-        setLoading(false);
-        return;
-      }
-
-      setTenantId(tenantIdParam);
-
-      // Check if payment was successful
-      const paymentSuccessParam = searchParams.get("payment_success");
-      if (paymentSuccessParam === "true") {
-        setPaymentSuccess(true);
-        setLoading(false);
-      }
     });
   }, [params, searchParams]);
 
   useEffect(() => {
-    if (!chargePointId || connectorId === null || !tenantId) return;
+    if (!chargePointId || connectorId === null || paymentSuccess) return;
 
-    // Fetch payment intent from backend API
-    const initializePayment = async () => {
+    const fetchPaymentUrl = async () => {
       try {
-        setLoading(true);
+        const apiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "https://cpms-stg.evnet.xyz";
 
-        const apiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "https://cpms-dev.evnet.xyz";
-        const token = localStorage.getItem("authToken"); // Get token from localStorage if needed
+        const response = await fetch(`${apiUrl}/guest-charging/generate-add-card-link`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chargePointId, connectorId }),
+        });
 
-        // Call backend API to create payment intent
-        // const response = await fetch(`${apiUrl}/guest-charging`, {
-        //   method: "POST",
-        //   headers: {
-        //     "Content-Type": "application/json",
-        //     ...(token && { Authorization: `Bearer ${token}` }),
-        //   },
-        //   body: JSON.stringify({
-        //     chargePointId,
-        //     connectorId,
-        //     tenantId,
-        //   }),
-        // });
-
-        // if (!response.ok) {
-        //   const errorData = await response.json().catch(() => ({}));
-        //   throw new Error(errorData.message || "Failed to create payment intent");
-        // }
-
-        // const data = await response.json();
-        const data = {
-          clientSecret: "pi_3SMqlpBuM2vWUvyZ1UrLyK2U_secret_LkVVWkxc0dwvs8CwVzASbWmCC",
-        };
-
-        // Assuming the API returns { clientSecret: string, publishableKey: string }
-        // Adjust based on your actual API response structure
-        if (!data.clientSecret) {
-          throw new Error("Invalid response from server - missing client secret");
+        if (!response.ok) {
+          throw new Error("Failed to get payment link");
         }
 
-        setClientSecret(data.clientSecret);
+        const contentType = response.headers.get("content-type");
+        const url = contentType?.includes("application/json")
+          ? (await response.json()).url
+          : await response.text();
 
-        // Initialize Stripe with publishable key from response or env
-        const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-        if (!publishableKey) {
-          throw new Error("Stripe publishable key not found");
+        if (url?.startsWith("http")) {
+          window.location.href = url;
+        } else {
+          throw new Error("Invalid URL received from server");
         }
-
-        setStripePromise(loadStripe(publishableKey));
-        setLoading(false);
       } catch (err) {
         console.error("Payment initialization error:", err);
         setError(err instanceof Error ? err.message : "Failed to initialize payment");
-        setLoading(false);
       }
     };
 
-    initializePayment();
-  }, [chargePointId, connectorId, tenantId]);
+    fetchPaymentUrl();
+  }, [chargePointId, connectorId, paymentSuccess]);
 
-  // Show success page after payment
+  // Success page
   if (paymentSuccess) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f6f9fc] px-4">
@@ -178,17 +137,7 @@ export default function ChargingPage({ params }: PageProps) {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f6f9fc]">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#5469d4] border-r-transparent mb-4"></div>
-          <p className="text-[#32325d]">Loading payment...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Error page
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f6f9fc]">
@@ -206,28 +155,13 @@ export default function ChargingPage({ params }: PageProps) {
     );
   }
 
-  if (!clientSecret || !stripePromise || connectorId === null) {
-    return null;
-  }
-
+  // Loading/redirecting state
   return (
-    <div className="min-h-screen bg-[#f6f9fc] py-5 px-5">
-      <Elements
-        stripe={stripePromise}
-        options={{
-          clientSecret,
-          appearance: {
-            theme: "stripe",
-          },
-        }}
-      >
-        <PaymentForm
-          chargePointId={chargePointId}
-          connectorId={connectorId}
-          tenantId={tenantId}
-          clientSecret={clientSecret}
-        />
-      </Elements>
+    <div className="flex min-h-screen items-center justify-center bg-[#f6f9fc]">
+      <div className="text-center">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#5469d4] border-r-transparent mb-4"></div>
+        <p className="text-[#32325d]">Redirecting to payment...</p>
+      </div>
     </div>
   );
 }
