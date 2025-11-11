@@ -59,7 +59,7 @@ export default function Home() {
               /{"{chargePointId}"}?connectorId={"{connectorId}"}
             </code>
             <p className="text-sm text-gray-600 mt-3">
-              <strong>Example:</strong> /CP05?connectorId=1
+              <strong>Example:</strong> /CP01?connectorId=1
             </p>
           </div>
 

@@ -49,7 +49,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000/CP001](http://localhost:3000/CP001) (replace `CP001` with your charge point ID)
+Open [http://localhost:3000/CP01](http://localhost:3000/CP01) (replace `CP01` with your charge point ID)
 
 ## Usage
 
@@ -57,7 +57,7 @@ Open [http://localhost:3000/CP001](http://localhost:3000/CP001) (replace `CP001`
 
 Navigate to `/{chargePointId}` where `chargePointId` is your unique charge point identifier.
 
-Example: `http://localhost:3000/CP001`
+Example: `http://localhost:3000/CP01`
 
 ### Testing Payments
 
@@ -79,7 +79,7 @@ Creates a Stripe PaymentIntent for the charging session.
 
 ```json
 {
-  "chargePointId": "CP001"
+  "chargePointId": "CP01"
 }
 ```
 
