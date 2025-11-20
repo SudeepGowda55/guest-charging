@@ -21,23 +21,7 @@ interface ChargingPeriod {
   dimensions: ChargingPeriodDimension[];
 }
 
-interface CdrLocation {
-  name: string;
-  address: string;
-  city: string;
-  postal_code: string;
-  country: string;
-  evse_name: string;
-  evse_model: string;
-  evse_manufacturer: string;
-  connector_standard: string;
-  connector_power_type: string;
-  connector_type_ui_name: string;
-  charge_point_id: string;
-  connector_sequence: number;
-}
-
-interface Cost {
+interface Price {
   incl_vat: number;
   excl_vat: number;
 }
@@ -45,27 +29,36 @@ interface Cost {
 interface SessionData {
   id: string;
   status: string;
-  cdr_location: CdrLocation;
   start_date_time: string;
-  end_date_time?: string;
-  last_updated?: string;
-  currency: string;
+  end_date_time: string;
+  last_updated: string;
+  charging_transaction_id: number;
+
+  // Energy & Time
   total_energy: number;
   total_time: number;
-  total_cost: Cost;
-  total_energy_cost?: Cost;
-  total_time_cost?: Cost;
-  total_fixed_cost?: Cost;
-  total_parking_cost?: Cost;
-  charging_periods: ChargingPeriod[];
-  soc_start?: number;
-  soc_stop?: number;
   meter_start?: number;
   meter_stop?: number;
+
+  // Costs
+  currency: string;
+  total_cost?: Price;
+  total_energy_cost?: Price;
+  total_time_cost?: Price;
+  total_fixed_cost?: Price;
+  total_parking_cost?: Price;
+
+  // Location info
+  location_name: string;
+  location_address: string;
+
+  // SOC if available
+  soc_start?: number;
+  soc_stop?: number;
+
+  charging_periods: ChargingPeriod[];
   invoice_reference_id?: string;
   remark?: string;
-  charging_transaction_id: number;
-  max_load: number;
 }
 
 export default function SuccessPage({ params }: PageProps) {
@@ -422,10 +415,8 @@ export default function SuccessPage({ params }: PageProps) {
                 />
               </svg>
               <div>
-                <p className="font-semibold text-gray-900">{sessionData.cdr_location.name}</p>
-                <p className="text-sm text-gray-600">
-                  Station: {sessionData.cdr_location.charge_point_id}
-                </p>
+                <p className="font-semibold text-gray-900">{sessionData.location_name}</p>
+                <p className="text-sm text-gray-600">Station: {chargePointId}</p>
               </div>
             </div>
           </div>
@@ -568,7 +559,7 @@ export default function SuccessPage({ params }: PageProps) {
             </div>
             <div className="text-2xl font-bold text-gray-900">
               {sessionData.currency}
-              {sessionData.total_cost.incl_vat.toFixed(2)}
+              {sessionData.total_cost?.incl_vat.toFixed(2) || "0.00"}
             </div>
           </div>
         </div>
@@ -779,11 +770,11 @@ export default function SuccessPage({ params }: PageProps) {
             <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
               {/* Location Card */}
               <div className="bg-gray-100 rounded-xl p-4">
-                <h3 className="font-semibold text-gray-900 mb-1">Test Location</h3>
+                <h3 className="font-semibold text-gray-900 mb-1">{sessionData.location_name}</h3>
                 <p className="text-sm text-gray-600">
                   01-08-2025 | {formatTime(sessionData.start_date_time)}
                 </p>
-                <p className="text-sm text-gray-600">{sessionData.cdr_location.charge_point_id}</p>
+                <p className="text-sm text-gray-600">{chargePointId}</p>
               </div>
 
               {/* Total Cost Card */}
@@ -791,7 +782,7 @@ export default function SuccessPage({ params }: PageProps) {
                 <p className="text-sm mb-2">Total Cost</p>
                 <p className="text-4xl font-bold">
                   {sessionData.currency}
-                  {sessionData.total_cost.incl_vat.toFixed(2)}
+                  {sessionData.total_cost?.incl_vat.toFixed(2) || "0.00"}
                 </p>
               </div>
 
